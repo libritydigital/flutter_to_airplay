@@ -14,9 +14,9 @@ class FlutterAVPlayer: NSObject, FlutterPlatformView {
     private var _flutterAVPlayerViewController : AVPlayerViewController;
     
     init(frame:CGRect,
-          viewIdentifier: CLongLong,
-          arguments: Dictionary<String, Any>,
-          binaryMessenger: FlutterBinaryMessenger) {
+        viewIdentifier: CLongLong,
+        arguments: Dictionary<String, Any>,
+        binaryMessenger: FlutterBinaryMessenger) {
         _flutterAVPlayerViewController = AVPlayerViewController()
         _flutterAVPlayerViewController.viewDidLoad()
         if let urlString = arguments["url"] {
@@ -24,18 +24,26 @@ class FlutterAVPlayer: NSObject, FlutterPlatformView {
             _flutterAVPlayerViewController.player = AVPlayer(playerItem: item)
         } else if let filePath = arguments["file"] {
             let appDelegate = UIApplication.shared.delegate as! FlutterAppDelegate
-            let vc = appDelegate.window.rootViewController as! FlutterViewController
+            guard let window = appDelegate.window else {
+                print("Error: appDelegate.window is nil")
+                return
+            }
+            guard let vc = window.rootViewController as? FlutterViewController else {
+                print("Error: rootViewController is not a FlutterViewController")
+                return
+            }
+
             let lookUpKey = vc.lookupKey(forAsset: filePath as! String)
             if let path = Bundle.main.path(forResource: lookUpKey, ofType: nil) {
                 let item = AVPlayerItem(url: URL(fileURLWithPath: path))
                 _flutterAVPlayerViewController.player = AVPlayer(playerItem: item)
-            }
-    else { // Fixed Issue#29
+            } else {
                 let item = AVPlayerItem(url: URL(fileURLWithPath: filePath as! String))
                 _flutterAVPlayerViewController.player = AVPlayer(playerItem: item)
             }
         }
-        _flutterAVPlayerViewController.player!.play()
+
+        _flutterAVPlayerViewController.player?.play()
     }
     func view() -> UIView {
         return _flutterAVPlayerViewController.view;
