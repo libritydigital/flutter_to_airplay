@@ -9,45 +9,56 @@ import Foundation
 import AVKit
 import MediaPlayer
 import Flutter
+import UIKit
+
+private func currentFlutterVC() -> FlutterViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+
+    if let win = scenes.flatMap({ $0.windows }).first(where: { $0.isKeyWindow }) {
+        return win.rootViewController as? FlutterViewController
+    }
+    return scenes.flatMap({ $0.windows }).first?.rootViewController as? FlutterViewController
+}
 
 class FlutterAVPlayer: NSObject, FlutterPlatformView {
-    private var _flutterAVPlayerViewController : AVPlayerViewController;
-    
-    init(frame:CGRect,
-        viewIdentifier: CLongLong,
-        arguments: Dictionary<String, Any>,
-        binaryMessenger: FlutterBinaryMessenger) {
-        _flutterAVPlayerViewController = AVPlayerViewController()
-        _flutterAVPlayerViewController.viewDidLoad()
-        if let urlString = arguments["url"] {
-            let item = AVPlayerItem(url: URL(string: urlString as! String)!)
-            _flutterAVPlayerViewController.player = AVPlayer(playerItem: item)
-        } else if let filePath = arguments["file"] {
-            let appDelegate = UIApplication.shared.delegate as! FlutterAppDelegate
-            guard let window = appDelegate.window else {
-                print("Error: appDelegate.window is nil")
-                return
-            }
-            guard let vc = window.rootViewController as? FlutterViewController else {
-                print("Error: rootViewController is not a FlutterViewController")
-                return
-            }
+    private var _flutterAVPlayerViewController: AVPlayerViewController
 
-            let lookUpKey = vc.lookupKey(forAsset: filePath as! String)
+    init(frame: CGRect,
+         viewIdentifier: CLongLong,
+         arguments: [String: Any],
+         binaryMessenger: FlutterBinaryMessenger) {
+
+        _flutterAVPlayerViewController = AVPlayerViewController()
+        super.init()
+
+        _flutterAVPlayerViewController.viewDidLoad()
+
+        if let urlString = arguments["url"] as? String,
+           let url = URL(string: urlString) {
+            let item = AVPlayerItem(url: url)
+            _flutterAVPlayerViewController.player = AVPlayer(playerItem: item)
+
+        } else if let filePath = arguments["file"] as? String {
+            guard let vc = currentFlutterVC() else {
+                print("flutter_to_airplay: cannot find FlutterViewController")
+                return
+            }
+            let lookUpKey = vc.lookupKey(forAsset: filePath)
             if let path = Bundle.main.path(forResource: lookUpKey, ofType: nil) {
                 let item = AVPlayerItem(url: URL(fileURLWithPath: path))
                 _flutterAVPlayerViewController.player = AVPlayer(playerItem: item)
             } else {
-                let item = AVPlayerItem(url: URL(fileURLWithPath: filePath as! String))
+                let item = AVPlayerItem(url: URL(fileURLWithPath: filePath))
                 _flutterAVPlayerViewController.player = AVPlayer(playerItem: item)
             }
         }
 
-        _flutterAVPlayerViewController.player?.play()
+        DispatchQueue.main.async { [weak self] in
+            self?._flutterAVPlayerViewController.player?.play()
+        }
     }
-    func view() -> UIView {
-        return _flutterAVPlayerViewController.view;
-    }
-    
-}
 
+    func view() -> UIView {
+        return _flutterAVPlayerViewController.view
+    }
+}
